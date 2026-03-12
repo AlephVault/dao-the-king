@@ -1088,3 +1088,83 @@ ERC2612 = ERC20 + [
         "type": "function"
     }
 ]
+
+# The definition of ERC-3009
+ERC3009 = ERC20 + [
+    {
+        "inputs": [
+            { "name": "from", "type": "address" },
+            { "name": "to", "type": "address" },
+            { "name": "value", "type": "uint256" },
+            { "name": "validAfter", "type": "uint256" },
+            { "name": "validBefore", "type": "uint256" },
+            { "name": "nonce", "type": "bytes32" },
+            { "name": "v", "type": "uint8" },
+            { "name": "r", "type": "bytes32" },
+            { "name": "s", "type": "bytes32" }
+        ],
+        "name": "transferWithAuthorization",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            { "name": "from", "type": "address" },
+            { "name": "to", "type": "address" },
+            { "name": "value", "type": "uint256" },
+            { "name": "validAfter", "type": "uint256" },
+            { "name": "validBefore", "type": "uint256" },
+            { "name": "nonce", "type": "bytes32" },
+            { "name": "v", "type": "uint8" },
+            { "name": "r", "type": "bytes32" },
+            { "name": "s", "type": "bytes32" }
+        ],
+        "name": "receiveWithAuthorization",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": False,
+        "inputs": [
+            { "name": "authorizer", "type": "address" },
+            { "name": "nonce", "type": "bytes32" }
+        ],
+        "name": "cancelAuthorization",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [
+            { "name": "authorizer", "type": "address" },
+            { "name": "nonce", "type": "bytes32" }
+        ],
+        "name": "authorizationState",
+        "outputs": [
+            { "name": "", "type": "bool" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            { "indexed": True, "name": "authorizer", "type": "address" },
+            { "indexed": True, "name": "nonce", "type": "bytes32" }
+        ],
+        "name": "AuthorizationCanceled",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            { "indexed": True, "name": "authorizer", "type": "address" },
+            { "indexed": True, "name": "nonce", "type": "bytes32" }
+        ],
+        "name": "AuthorizationUsed",
+        "type": "event"
+    }
+]
