@@ -32,11 +32,19 @@ KNOWN_BADGE_ABIS = {
 
 @dataclass(slots=True)
 class ContractBadgeResult:
+    """
+    Container for detected contract badges and derived metadata.
+    """
+
     badges: dict[str, dict[str, Any]] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def _split_array_suffix(type_name: str) -> tuple[str, str]:
+    """
+    Split an ABI type into its base type and any trailing array suffix.
+    """
+
     if "[" not in type_name:
         return type_name, ""
     index = type_name.index("[")
@@ -44,6 +52,10 @@ def _split_array_suffix(type_name: str) -> tuple[str, str]:
 
 
 def _format_parameter_type(parameter: dict[str, Any]) -> str:
+    """
+    Render the Solidity type for an ABI parameter, including tuple components.
+    """
+
     type_name = str(parameter.get("type", ""))
     base_type, array_suffix = _split_array_suffix(type_name)
     if base_type != "tuple":
@@ -55,6 +67,10 @@ def _format_parameter_type(parameter: dict[str, Any]) -> str:
 
 
 def _format_parameter_declaration(parameter: dict[str, Any], *, for_event: bool = False) -> str:
+    """
+    Render one ABI parameter as a Solidity-like declaration string.
+    """
+
     chunks = [_format_parameter_type(parameter)]
     if for_event and parameter.get("indexed", False):
         chunks.append("indexed")
@@ -65,6 +81,10 @@ def _format_parameter_declaration(parameter: dict[str, Any], *, for_event: bool 
 
 
 def _format_function_signature(entry: ABIElement) -> str:
+    """
+    Render one ABI function entry as a Solidity-style function signature.
+    """
+
     inputs = ", ".join(
         _format_parameter_declaration(parameter)
         for parameter in entry.get("inputs", [])
@@ -85,6 +105,10 @@ def _format_function_signature(entry: ABIElement) -> str:
 
 
 def _format_event_signature(entry: ABIElement) -> str:
+    """
+    Render one ABI event entry as a Solidity-style event signature.
+    """
+
     inputs = ", ".join(
         _format_parameter_declaration(parameter, for_event=True)
         for parameter in entry.get("inputs", [])
@@ -93,6 +117,10 @@ def _format_event_signature(entry: ABIElement) -> str:
 
 
 def _functions_metadata(abi: list[ABIElement]) -> list[tuple[str, ABIElement]]:
+    """
+    Build the sorted `(signature, ABI entry)` list for all functions in an ABI.
+    """
+
     functions = [
         (_format_function_signature(entry), entry)
         for entry in abi
@@ -103,6 +131,10 @@ def _functions_metadata(abi: list[ABIElement]) -> list[tuple[str, ABIElement]]:
 
 
 def _events_metadata(abi: list[ABIElement]) -> list[tuple[str, ABIElement]]:
+    """
+    Build the sorted `(signature, ABI entry)` list for all events in an ABI.
+    """
+
     events = [
         (_format_event_signature(entry), entry)
         for entry in abi
@@ -113,6 +145,10 @@ def _events_metadata(abi: list[ABIElement]) -> list[tuple[str, ABIElement]]:
 
 
 def _normalize_parameter(parameter: dict[str, Any], *, is_event: bool) -> dict[str, Any]:
+    """
+    Normalize an ABI parameter for structural comparison, ignoring names.
+    """
+
     normalized: dict[str, Any] = {
         "type": parameter.get("type"),
     }
@@ -128,6 +164,10 @@ def _normalize_parameter(parameter: dict[str, Any], *, is_event: bool) -> dict[s
 
 
 def _normalize_abi_entry(entry: ABIElement) -> dict[str, Any] | None:
+    """
+    Normalize a function or event ABI entry into a comparable shape.
+    """
+
     entry_type = entry.get("type")
     if entry_type not in {"function", "event"}:
         return None
@@ -152,6 +192,10 @@ def _normalize_abi_entry(entry: ABIElement) -> dict[str, Any] | None:
 
 
 def _normalized_abi_set(abi: list[ABIElement]) -> set[str]:
+    """
+    Convert an ABI into a set of normalized JSON strings for subset checks.
+    """
+
     result: set[str] = set()
     for entry in abi:
         normalized = _normalize_abi_entry(entry)
@@ -161,6 +205,10 @@ def _normalized_abi_set(abi: list[ABIElement]) -> set[str]:
 
 
 def _match_known_badges(abi: list[ABIElement]) -> set[str]:
+    """
+    Return the known badges whose canonical ABI fragments are present in the ABI.
+    """
+
     contract_entries = _normalized_abi_set(abi)
     matched: set[str] = set()
     for badge, badge_abi in KNOWN_BADGE_ABIS.items():
@@ -170,6 +218,10 @@ def _match_known_badges(abi: list[ABIElement]) -> set[str]:
 
 
 def _safe_call(contract: Contract, function_name: str) -> Any | None:
+    """
+    Call a zero-argument contract function and return `None` on failure.
+    """
+
     functions = getattr(contract, "functions", None)
     if functions is None or not hasattr(functions, function_name):
         return None
@@ -180,6 +232,10 @@ def _safe_call(contract: Contract, function_name: str) -> Any | None:
 
 
 def _extract_erc1967_slots(contract: Contract) -> dict[str, Any]:
+    """
+    Read the standard ERC-1967 storage slots and return populated addresses.
+    """
+
     result: dict[str, Any] = {}
     for label, slot in ERC1967_SLOTS.items():
         try:
@@ -192,6 +248,10 @@ def _extract_erc1967_slots(contract: Contract) -> dict[str, Any]:
 
 
 def detect_contract_badges(contract: Contract) -> ContractBadgeResult:
+    """
+    Detect supported badges for a contract and collect static metadata about it.
+    """
+
     abi: list[ABIElement] = list(contract.abi)
     detected = _match_known_badges(abi)
     badges: dict[str, dict[str, Any]] = {}
