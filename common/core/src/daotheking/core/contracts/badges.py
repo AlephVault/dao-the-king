@@ -2,10 +2,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import Any
-
 from eth_typing import ABIElement
 from web3.contract import Contract
 from . import known_abis
+
 
 ERC1967_SLOTS = {
     "implementation": "0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC",
@@ -36,12 +36,80 @@ class ContractBadgeResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-def _function_names(abi: list[ABIElement]) -> set[str]:
-    return {entry["name"] for entry in abi if entry.get("type") == "function" and "name" in entry}
+def _split_array_suffix(type_name: str) -> tuple[str, str]:
+    if "[" not in type_name:
+        return type_name, ""
+    index = type_name.index("[")
+    return type_name[:index], type_name[index:]
 
 
-def _event_names(abi: list[ABIElement]) -> set[str]:
-    return {entry["name"] for entry in abi if entry.get("type") == "event" and "name" in entry}
+def _format_parameter_type(parameter: dict[str, Any]) -> str:
+    type_name = str(parameter.get("type", ""))
+    base_type, array_suffix = _split_array_suffix(type_name)
+    if base_type != "tuple":
+        return f"{base_type}{array_suffix}"
+
+    components = parameter.get("components", [])
+    rendered_components = ", ".join(_format_parameter_declaration(component) for component in components)
+    return f"tuple({rendered_components}){array_suffix}"
+
+
+def _format_parameter_declaration(parameter: dict[str, Any], *, for_event: bool = False) -> str:
+    chunks = [_format_parameter_type(parameter)]
+    if for_event and parameter.get("indexed", False):
+        chunks.append("indexed")
+    name = str(parameter.get("name", "")).strip()
+    if name:
+        chunks.append(name)
+    return " ".join(chunks)
+
+
+def _format_function_signature(entry: ABIElement) -> str:
+    inputs = ", ".join(
+        _format_parameter_declaration(parameter)
+        for parameter in entry.get("inputs", [])
+    )
+    signature = f"function {entry.get('name')}({inputs}) external"
+    state_mutability = entry.get("stateMutability")
+    if state_mutability in {"view", "pure", "payable"}:
+        signature = f"{signature} {state_mutability}"
+
+    outputs = entry.get("outputs", [])
+    if outputs:
+        rendered_outputs = ", ".join(
+            _format_parameter_declaration(parameter)
+            for parameter in outputs
+        )
+        signature = f"{signature} returns ({rendered_outputs})"
+    return signature
+
+
+def _format_event_signature(entry: ABIElement) -> str:
+    inputs = ", ".join(
+        _format_parameter_declaration(parameter, for_event=True)
+        for parameter in entry.get("inputs", [])
+    )
+    return f"event {entry.get('name')}({inputs})"
+
+
+def _functions_metadata(abi: list[ABIElement]) -> list[tuple[str, ABIElement]]:
+    functions = [
+        (_format_function_signature(entry), entry)
+        for entry in abi
+        if entry.get("type") == "function" and "name" in entry
+    ]
+    functions.sort(key=lambda item: item[0])
+    return functions
+
+
+def _events_metadata(abi: list[ABIElement]) -> list[tuple[str, ABIElement]]:
+    events = [
+        (_format_event_signature(entry), entry)
+        for entry in abi
+        if entry.get("type") == "event" and "name" in entry
+    ]
+    events.sort(key=lambda item: item[0])
+    return events
 
 
 def _normalize_parameter(parameter: dict[str, Any], *, is_event: bool) -> dict[str, Any]:
@@ -172,8 +240,8 @@ def detect_contract_badges(contract: Contract) -> ContractBadgeResult:
         badges["ERC1967"] = erc1967
 
     metadata = {
-        "function_names": sorted(_function_names(abi)),
-        "event_names": sorted(_event_names(abi)),
+        "functions": _functions_metadata(abi),
+        "events": _events_metadata(abi),
         "matched_badges": sorted(detected),
     }
     return ContractBadgeResult(badges=badges, metadata=metadata)
