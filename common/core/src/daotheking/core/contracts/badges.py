@@ -305,3 +305,12 @@ def detect_contract_badges(contract: Contract) -> ContractBadgeResult:
         "matched_badges": sorted(detected),
     }
     return ContractBadgeResult(badges=badges, metadata=metadata)
+
+
+METADATA_FROM_KNOWN_BADGE_ABIS = {
+    key: {
+        "functions": _functions_metadata(abi),
+        "events": _events_metadata(abi)
+    }
+    for key, abi in KNOWN_BADGE_ABIS.items()
+}
