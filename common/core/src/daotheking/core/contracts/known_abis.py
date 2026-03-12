@@ -1126,7 +1126,6 @@ ERC3009 = ERC20 + [
         "type": "function"
     },
     {
-        "constant": False,
         "inputs": [
             { "name": "authorizer", "type": "address" },
             { "name": "nonce", "type": "bytes32" }
@@ -1137,7 +1136,6 @@ ERC3009 = ERC20 + [
         "type": "function"
     },
     {
-        "constant": True,
         "inputs": [
             { "name": "authorizer", "type": "address" },
             { "name": "nonce", "type": "bytes32" }
@@ -1166,5 +1164,67 @@ ERC3009 = ERC20 + [
         ],
         "name": "AuthorizationUsed",
         "type": "event"
+    }
+]
+
+_USER_OP = {
+    "internalType": "PackedUserOperation",
+    "name": "userOp",
+    "type": "tuple",
+    "components": []
+}
+
+# Base ERC-4337 interface
+ERC4337 = [
+    # interface IAccount {
+    #   function validateUserOp
+    #       (PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    #       external returns (uint256 validationData);
+    # }
+    {
+        "inputs": [
+            _USER_OP,
+            {
+                "internalType": "bytes32",
+                "name": "userOpHash",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "uint256",
+                "name": "missingAccountFunds",
+                "type": "uint256"
+            }
+        ],
+        "name": "validateUserOp",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
+
+# ERC-4337 extended with execution entry point.
+ERC4337Execute = ERC4337 + [
+    # interface IAccountExecute {
+    #   function executeUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external;
+    # }
+    {
+        "inputs": [
+            _USER_OP,
+            {
+                "internalType": "bytes32",
+                "name": "userOpHash",
+                "type": "bytes32"
+            }
+        ],
+        "name": "executeUserOp",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
     }
 ]
