@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daotheking-core"
+version = "0.1.0"
+description = "Shared core package for Dao The King"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Luis Masuelli" }
+]
+dependencies = [
+  "pydantic>=2.10,<3",
+  "web3>=7,<8",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daotheking"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
