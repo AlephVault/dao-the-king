@@ -6,6 +6,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      - daotheking
 
   worker:
     build:
@@ -26,6 +28,12 @@ services:
       ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY:-}
     volumes:
       - ./contracts:/app/contracts:ro
+    networks:
+      - daotheking
 
 volumes:
   mongo-data:
+
+networks:
+  daotheking:
+    name: daotheking
