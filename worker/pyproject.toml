@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daotheking-worker"
+version = "0.1.0"
+description = "Background worker for Dao The King"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "daotheking-core",
+  "pymongo>=4.10,<5",
+]
+
+[project.scripts]
+daotheking-worker = "daotheking.worker.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daotheking"]
