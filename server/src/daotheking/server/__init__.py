@@ -1,0 +1,3 @@
+"""
+Server application package.
+"""

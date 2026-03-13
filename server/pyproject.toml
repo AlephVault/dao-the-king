@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daotheking-server"
+version = "0.1.0"
+description = "Streamlit server for Dao The King"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "daotheking-core",
+  "pymongo>=4.10,<5",
+  "streamlit>=1.42,<2",
+  "streamlit-browser-web3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daotheking"]
