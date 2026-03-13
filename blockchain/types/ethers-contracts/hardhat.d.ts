@@ -10,13 +10,33 @@ import * as Contracts from "./index.js";
 
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
-  getContractFactory(name: 'SampleToken', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleToken__factory>
+  getContractFactory(name: 'SampleBadge', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleBadge__factory>
+getContractFactory(name: 'SampleERC1155', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleERC1155__factory>
+getContractFactory(name: 'SampleERC1155Receiver', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleERC1155Receiver__factory>
+getContractFactory(name: 'SampleERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleERC20__factory>
+getContractFactory(name: 'SampleERC721', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleERC721__factory>
+getContractFactory(name: 'SampleERC721Receiver', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SampleERC721Receiver__factory>
 
-  getContractAt(name: 'SampleToken', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleToken>
+  getContractAt(name: 'SampleBadge', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleBadge>
+getContractAt(name: 'SampleERC1155', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleERC1155>
+getContractAt(name: 'SampleERC1155Receiver', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleERC1155Receiver>
+getContractAt(name: 'SampleERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleERC20>
+getContractAt(name: 'SampleERC721', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleERC721>
+getContractAt(name: 'SampleERC721Receiver', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SampleERC721Receiver>
 
-  deployContract(name: 'SampleToken', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleToken>
+  deployContract(name: 'SampleBadge', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleBadge>
+deployContract(name: 'SampleERC1155', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC1155>
+deployContract(name: 'SampleERC1155Receiver', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC1155Receiver>
+deployContract(name: 'SampleERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC20>
+deployContract(name: 'SampleERC721', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC721>
+deployContract(name: 'SampleERC721Receiver', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC721Receiver>
 
-  deployContract(name: 'SampleToken', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleToken>
+  deployContract(name: 'SampleBadge', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleBadge>
+deployContract(name: 'SampleERC1155', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC1155>
+deployContract(name: 'SampleERC1155Receiver', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC1155Receiver>
+deployContract(name: 'SampleERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC20>
+deployContract(name: 'SampleERC721', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC721>
+deployContract(name: 'SampleERC721Receiver', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SampleERC721Receiver>
 
     // default types
     getContractFactory(
