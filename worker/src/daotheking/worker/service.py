@@ -318,12 +318,19 @@ class WorkerService:
         transaction_index = int(transaction["transactionIndex"])
         receipt = contract.w3.eth.get_transaction_receipt(tx_hash_hex)
         decoded_input: dict[str, Any] | None = None
+        method_selector: str | None = None
         input_data = transaction.get("input")
+        if isinstance(input_data, str) and input_data.startswith("0x") and len(input_data) >= 10:
+            method_selector = input_data[:10].lower()
         if input_data and input_data != "0x":
             try:
                 function_abi, arguments = contract.decode_function_input(input_data)
+                canonical_signature = WorkerService._function_signature(function_abi.abi)
+                method_selector = WorkerService._function_selector(canonical_signature)
                 decoded_input = {
                     "function_name": function_abi.fn_name,
+                    "function_signature": canonical_signature,
+                    "method_selector": method_selector,
                     "arguments": dict(arguments),
                 }
             except Exception:
@@ -337,11 +344,50 @@ class WorkerService:
             "hash": tx_hash_hex,
             "block_number": block_number,
             "transaction_index": transaction_index,
+            "method_selector": method_selector,
             "transaction": _json_safe_dict(transaction),
             "decoded_input": decoded_input,
             "result": result,
             "receipt": result,
         }
+
+    @staticmethod
+    def _function_signature(function_abi: dict[str, Any]) -> str:
+        """
+        Build the canonical function signature for one ABI function entry.
+        """
+
+        return f"{function_abi.get('name')}({','.join(
+            WorkerService._abi_parameter_type(item)
+            for item in function_abi.get('inputs', [])
+            if isinstance(item, dict)
+        )})"
+
+    @staticmethod
+    def _function_selector(function_signature: str) -> str:
+        """
+        Convert a canonical function signature into its 4-byte selector hex string.
+        """
+
+        return "0x" + Web3.keccak(text=function_signature).hex()[:8]
+
+    @staticmethod
+    def _abi_parameter_type(parameter: dict[str, Any]) -> str:
+        """
+        Render one ABI parameter into the canonical type-only signature form.
+        """
+
+        type_name = str(parameter.get("type", ""))
+        if not type_name.startswith("tuple"):
+            return type_name
+
+        array_suffix = type_name[5:]
+        components = ",".join(
+            WorkerService._abi_parameter_type(item)
+            for item in parameter.get("components", [])
+            if isinstance(item, dict)
+        )
+        return f"tuple({components}){array_suffix}"
 
     @staticmethod
     def _event_abi_for_signature(contract: Contract, event_signature: str) -> dict[str, Any] | None:

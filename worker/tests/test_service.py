@@ -47,19 +47,28 @@ def test_normalize_transaction_includes_result_and_receipt() -> None:
     contract = SimpleNamespace(
         address="0x0000000000000000000000000000000000000000",
         w3=SimpleNamespace(eth=SimpleNamespace(get_transaction_receipt=lambda _: receipt)),
-        decode_function_input=lambda _: (_DummyFunctionAbi("transfer"), {"to": "0x1", "value": 2}),
+        decode_function_input=lambda _: (_DummyFunctionAbi("transfer", {
+            "name": "transfer",
+            "inputs": [
+                {"type": "address", "name": "to"},
+                {"type": "uint256", "name": "value"},
+            ],
+        }), {"to": "0x1", "value": 2}),
     )
     runtime = SimpleNamespace(chain_id=1)
     transaction = {
         "hash": "0xabc",
         "blockNumber": 10,
         "transactionIndex": 3,
-        "input": "0x1234",
+        "input": "0xa9059cbb00000000",
     }
     normalized = WorkerService._normalize_transaction(runtime, contract, transaction)
     assert normalized["result"] == {"status": 1}
     assert normalized["receipt"] == {"status": 1}
     assert normalized["decoded_input"]["function_name"] == "transfer"
+    assert normalized["decoded_input"]["function_signature"] == "transfer(address,uint256)"
+    assert normalized["method_selector"] == "0xa9059cbb"
+    assert normalized["decoded_input"]["method_selector"] == "0xa9059cbb"
 
 
 def test_normalize_event_uses_hash_as_primary_identity(monkeypatch) -> None:
@@ -88,5 +97,6 @@ def test_normalize_event_uses_hash_as_primary_identity(monkeypatch) -> None:
 
 
 class _DummyFunctionAbi:
-    def __init__(self, fn_name: str) -> None:
+    def __init__(self, fn_name: str, abi: dict[str, object]) -> None:
         self.fn_name = fn_name
+        self.abi = abi
