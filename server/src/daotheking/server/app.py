@@ -181,8 +181,8 @@ def _render_transactions_section(
         )
         st.caption(f"Showing {len(items)} of {total_count} transaction(s)")
     else:
-        items = _get_method_transactions(data, chain_id, contract_address, method_key_filter)
-        total_count = len(items)
+        method_selector = _function_selector(method_key_filter)
+        total_count = data.storage.get_method_transactions_count(chain_id, contract_address, method_selector)
         total_pages = max(1, ceil(total_count / data.settings.transactions_page_size))
         page = int(
             st.number_input(
@@ -194,7 +194,13 @@ def _render_transactions_section(
             )
         )
         offset = (page - 1) * data.settings.transactions_page_size
-        items = items[offset : offset + data.settings.transactions_page_size]
+        items = data.storage.get_method_transactions(
+            chain_id,
+            contract_address,
+            method_selector,
+            offset,
+            data.settings.transactions_page_size,
+        )
         st.caption(f"Showing {len(items)} of {total_count} transaction(s) for `{method_key_filter}`")
 
     for item in items:
@@ -399,46 +405,6 @@ def _transaction_overrides(method_key: str) -> tuple[dict[str, str], list[str]]:
             elif parsed is not None:
                 tx_params[field] = hex(parsed)
     return tx_params, errors
-
-
-def _get_method_transactions(
-    data: ServerData,
-    chain_id: int,
-    contract_address: str,
-    method_key_filter: str,
-) -> list[dict[str, Any]]:
-    """
-    Return the stored transactions that target one specific ABI method.
-
-    Storage currently indexes transactions per contract, not per function, so
-    this filter is applied in memory using the calldata selector.
-    """
-
-    total_count = data.storage.get_transactions_count(chain_id, contract_address)
-    if total_count == 0:
-        return []
-
-    selector = _function_selector(method_key_filter)
-    items = data.storage.get_transactions(chain_id, contract_address, 0, total_count)
-    return [item for item in items if _transaction_matches_method(item, selector, method_key_filter)]
-
-
-def _transaction_matches_method(item: dict[str, Any], selector: str, method_key_filter: str) -> bool:
-    """
-    Tell whether one stored transaction belongs to the selected ABI method.
-
-    The primary check uses the calldata selector, which keeps overloaded
-    functions distinct. A name-only fallback is kept for older stored records
-    that may not have a usable raw input payload.
-    """
-
-    transaction = item.get("transaction") or {}
-    input_data = transaction.get("input")
-    if isinstance(input_data, str) and input_data.startswith("0x") and len(input_data) >= 10:
-        return input_data[:10].lower() == selector
-
-    decoded_input = item.get("decoded_input") or {}
-    return decoded_input.get("function_name") == method_key_filter.split("(", 1)[0]
 
 
 def _function_selector(method_key: str) -> str:
