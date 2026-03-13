@@ -90,6 +90,23 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_method_transactions(self, chain_id: int, contract_address: str, method_selector: str, offset: int,
+                                limit: int) -> list[dict[str, Any]]:
+        """
+        Return a page of stored transactions for one contract method selector.
+        """
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_method_transactions_count(self, chain_id: int, contract_address: str, method_selector: str) -> int:
+        """
+        Return how many transactions are stored for one contract method selector.
+        """
+
+        raise NotImplementedError
+
+    @abstractmethod
     def get_contract_events_bookmark(self, chain_id: int, contract_address: str, event: str) -> tuple[int, int, int]:
         """
         Return the last stored event bookmark, or `(-1, -1, -1)` if absent.

@@ -59,6 +59,11 @@ class MongoDBStorage(StorageBackend):
             [("chain_id", 1), ("contract_address", 1), ("block_number", 1), ("transaction_index", 1)],
             name="transactions_chain_address_order",
         )
+        self._transactions.create_index(
+            [("chain_id", 1), ("contract_address", 1), ("method_selector", 1), ("block_number", 1),
+             ("transaction_index", 1)],
+            name="transactions_chain_address_method_order",
+        )
         self._event_bookmarks.create_index(
             [("chain_id", 1), ("contract_address", 1), ("event", 1)],
             unique=True,
@@ -195,6 +200,41 @@ class MongoDBStorage(StorageBackend):
         """
 
         return int(self._transactions.count_documents({"chain_id": chain_id, "contract_address": contract_address}))
+
+    def get_method_transactions(self, chain_id: int, contract_address: str, method_selector: str, offset: int,
+                                limit: int) -> list[dict[str, Any]]:
+        """
+        Return a sorted page of transactions for one contract method selector.
+        """
+
+        cursor = (
+            self._transactions.find(
+                {
+                    "chain_id": chain_id,
+                    "contract_address": contract_address,
+                    "method_selector": method_selector,
+                }
+            )
+            .sort([("block_number", 1), ("transaction_index", 1)])
+            .skip(offset)
+            .limit(limit)
+        )
+        return [_strip_id(document) for document in cursor]
+
+    def get_method_transactions_count(self, chain_id: int, contract_address: str, method_selector: str) -> int:
+        """
+        Return the number of stored transactions for one contract method selector.
+        """
+
+        return int(
+            self._transactions.count_documents(
+                {
+                    "chain_id": chain_id,
+                    "contract_address": contract_address,
+                    "method_selector": method_selector,
+                }
+            )
+        )
 
     def get_contract_events_bookmark(self, chain_id: int, contract_address: str, event: str) -> tuple[int, int, int]:
         """

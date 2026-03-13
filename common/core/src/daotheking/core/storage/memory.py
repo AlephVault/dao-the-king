@@ -98,6 +98,30 @@ class InMemoryStorage(StorageBackend):
 
         return len(self._transactions[(chain_id, contract_address)])
 
+    def get_method_transactions(self, chain_id: int, contract_address: str, method_selector: str, offset: int,
+                                limit: int) -> list[dict[str, Any]]:
+        """
+        Return a sorted page of transactions for one contract method selector.
+        """
+
+        items = [
+            item for item in self._transactions[(chain_id, contract_address)].values()
+            if item.get("method_selector") == method_selector
+        ]
+        items.sort(key=lambda item: (item.get("block_number", -1), item.get("transaction_index", -1)))
+        return items[offset : offset + limit]
+
+    def get_method_transactions_count(self, chain_id: int, contract_address: str, method_selector: str) -> int:
+        """
+        Return the number of stored transactions for one contract method selector.
+        """
+
+        return sum(
+            1
+            for item in self._transactions[(chain_id, contract_address)].values()
+            if item.get("method_selector") == method_selector
+        )
+
     def get_contract_events_bookmark(self, chain_id: int, contract_address: str, event: str) -> tuple[int, int, int]:
         """
         Return the event bookmark for a contract and event, or `(-1, -1, -1)`.
