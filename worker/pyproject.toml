@@ -13,8 +13,16 @@ dependencies = [
   "pymongo>=4.10,<5",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+]
+
 [project.scripts]
 daotheking-worker = "daotheking.worker.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/daotheking"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

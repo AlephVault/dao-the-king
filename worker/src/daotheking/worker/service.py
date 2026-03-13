@@ -58,12 +58,19 @@ class WorkerService:
                 continue
             self._start_contract_threads(runtime, result.contract)
 
+        if not self._threads:
+            LOGGER.error("Worker did not start any polling threads")
+            return 1
+
         if self._context.settings.run_once:
             for thread in self._threads:
                 thread.join()
             return 0
 
-        self._stop_event.wait()
+        while not self._stop_event.wait(1.0):
+            if not any(thread.is_alive() for thread in self._threads):
+                LOGGER.error("All worker threads stopped unexpectedly")
+                return 1
         for thread in self._threads:
             thread.join(timeout=2.0)
         return 0
@@ -104,10 +111,11 @@ class WorkerService:
             enabled, probability, minimum = retrieve_sampling(rule)
             if not enabled:
                 continue
+            event_key = self._event_storage_key(event_signature)
             self._spawn(
                 target=self._events_loop,
-                name=f"event-{runtime.chain_id}-{runtime.contract.address}-{event_signature}",
-                args=(runtime, contract, event_signature, probability, minimum),
+                name=f"event-{runtime.chain_id}-{runtime.contract.address}-{event_key}",
+                args=(runtime, contract, event_signature, event_key, probability, minimum),
             )
 
     def _spawn(self, *, target: Any, name: str, args: tuple[Any, ...]) -> None:
@@ -202,7 +210,7 @@ class WorkerService:
                 return
             page += 1
 
-    def _events_loop(self, runtime: ContractRuntimeConfig, contract: Contract, event_signature: str,
+    def _events_loop(self, runtime: ContractRuntimeConfig, contract: Contract, event_signature: str, event_key: str,
                      probability: float | None, minimum: int) -> None:
         """
         Continuously poll and store one event stream for one contract.
@@ -210,7 +218,7 @@ class WorkerService:
 
         while not self._stop_event.is_set():
             try:
-                self._run_events_iteration(runtime, contract, event_signature, probability, minimum)
+                self._run_events_iteration(runtime, contract, event_signature, event_key, probability, minimum)
             except Exception:
                 LOGGER.exception(
                     "Events iteration failed for %s on chain %s and event %s",
@@ -223,6 +231,7 @@ class WorkerService:
             self._stop_event.wait(self._context.settings.poll_interval_seconds)
 
     def _run_events_iteration(self, runtime: ContractRuntimeConfig, contract: Contract, event_signature: str,
+                              event_key: str,
                               probability: float | None, minimum: int) -> None:
         """
         Execute one event polling sweep for one contract and event signature.
@@ -232,9 +241,9 @@ class WorkerService:
         last_block_number, last_transaction_index, last_log_index = storage.get_contract_events_bookmark(
             runtime.chain_id,
             contract.address,
-            event_signature,
+            event_key,
         )
-        stored_count = storage.get_events_count(runtime.chain_id, contract.address, event_signature)
+        stored_count = storage.get_events_count(runtime.chain_id, contract.address, event_key)
         event_abi = self._event_abi_for_signature(contract, event_signature)
         if event_abi is None:
             LOGGER.warning("Event %s not found in ABI for %s", event_signature, contract.address)
@@ -279,7 +288,7 @@ class WorkerService:
                 storage.set_contract_events_bookmark(
                     runtime.chain_id,
                     contract.address,
-                    event_signature,
+                    event_key,
                     *last_seen,
                 )
                 last_block_number, last_transaction_index, last_log_index = last_seen
@@ -320,6 +329,8 @@ class WorkerService:
             except Exception:
                 decoded_input = None
 
+        result = _json_safe_dict(dict(receipt))
+
         return {
             "chain_id": runtime.chain_id,
             "contract_address": contract.address,
@@ -328,7 +339,8 @@ class WorkerService:
             "transaction_index": transaction_index,
             "transaction": _json_safe_dict(transaction),
             "decoded_input": decoded_input,
-            "receipt": _json_safe_dict(dict(receipt)),
+            "result": result,
+            "receipt": result,
         }
 
     @staticmethod
@@ -349,6 +361,14 @@ class WorkerService:
         return None
 
     @staticmethod
+    def _event_storage_key(event_signature: str) -> str:
+        """
+        Convert an event signature into the keccak hash used as the storage key.
+        """
+
+        return "0x" + Web3.keccak(text=event_signature).hex()
+
+    @staticmethod
     def _normalize_event(contract: Contract, event_signature: str,
                          event_abi: dict[str, Any], log: Any) -> dict[str, Any]:
         """
@@ -356,9 +376,12 @@ class WorkerService:
         """
 
         decoded = get_event_data(contract.w3.codec, event_abi, log)
+        event_hash = WorkerService._event_storage_key(event_signature)
         return {
             "contract_address": contract.address,
-            "event": event_signature,
+            "event": event_hash,
+            "event_signature": event_signature,
+            "event_hash": event_hash,
             "block_number": int(log["blockNumber"]),
             "transaction_index": int(log["transactionIndex"]),
             "log_index": int(log["logIndex"]),
