@@ -9,7 +9,8 @@ from web3 import Web3
 from web3._utils.events import get_event_data
 from web3.contract import Contract
 from daotheking.core import MongoDBStorage, load_contracts
-from .config import ContractRuntimeConfig, WorkerSettings, iter_requested_events, load_runtime_config, retrieve_sampling
+from .config import (ContractRuntimeConfig, WorkerSettings, iter_requested_events,
+                     load_runtime_config, retrieve_sampling)
 from .etherscan import fetch_transactions_page
 
 
@@ -19,7 +20,7 @@ LOGGER = logging.getLogger(__name__)
 @dataclass(slots=True)
 class WorkerContext:
     """
-
+    Fully prepared runtime state for the worker service.
     """
 
     settings: WorkerSettings
@@ -30,10 +31,14 @@ class WorkerContext:
 
 class WorkerService:
     """
-
+    Long-running background worker that polls transactions and logs.
     """
 
     def __init__(self, context: WorkerContext) -> None:
+        """
+        Initialize the worker service with its prepared runtime context.
+        """
+
         self._context = context
         self._stop_event = threading.Event()
         self._threads: list[threading.Thread] = []
@@ -41,15 +46,15 @@ class WorkerService:
 
     def run(self) -> int:
         """
-
-        :return:
+        Start the required polling threads and keep the worker alive.
         """
 
         self._install_signal_handlers()
         for runtime in self._context.runtime_configs:
             result = self._context.contracts.get(runtime.chain_id, {}).get(runtime.contract.address)
             if result is None or result.contract is None or result.error is not None:
-                LOGGER.warning("Skipping %s on chain %s due to load error", runtime.contract.address, runtime.chain_id)
+                LOGGER.warning("Skipping %s on chain %s due to load error",
+                               runtime.contract.address, runtime.chain_id)
                 continue
             self._start_contract_threads(runtime, result.contract)
 
@@ -65,16 +70,14 @@ class WorkerService:
 
     def stop(self) -> None:
         """
-
-        :return:
+        Request a graceful stop for the worker service.
         """
 
         self._stop_event.set()
 
     def _install_signal_handlers(self) -> None:
         """
-
-        :return:
+        Register process signal handlers that trigger graceful shutdown.
         """
 
         def handler(signum: int, _frame: object) -> None:
@@ -86,10 +89,7 @@ class WorkerService:
 
     def _start_contract_threads(self, runtime: ContractRuntimeConfig, contract: Contract) -> None:
         """
-
-        :param runtime:
-        :param contract:
-        :return:
+        Start the transaction and event threads required for one contract.
         """
 
         enabled, probability, minimum = retrieve_sampling(runtime.contract.retrieve.transactions)
@@ -112,11 +112,7 @@ class WorkerService:
 
     def _spawn(self, *, target: Any, name: str, args: tuple[Any, ...]) -> None:
         """
-
-        :param target:
-        :param name:
-        :param args:
-        :return:
+        Spawn one worker thread and keep track of it for shutdown.
         """
 
         thread = threading.Thread(target=target, name=name, args=args, daemon=not self._context.settings.run_once)
@@ -126,12 +122,7 @@ class WorkerService:
     def _transactions_loop(self, runtime: ContractRuntimeConfig, contract: Contract,
                            probability: float | None, minimum: int) -> None:
         """
-
-        :param runtime:
-        :param contract:
-        :param probability:
-        :param minimum:
-        :return:
+        Continuously poll and store transactions for one contract.
         """
 
         if not self._context.settings.etherscan_api_key:
@@ -146,7 +137,8 @@ class WorkerService:
             try:
                 self._run_transactions_iteration(runtime, contract, probability, minimum)
             except Exception:
-                LOGGER.exception("Transactions iteration failed for %s on chain %s", contract.address, runtime.chain_id)
+                LOGGER.exception("Transactions iteration failed for %s on chain %s",
+                                 contract.address, runtime.chain_id)
             if self._context.settings.run_once:
                 return
             self._stop_event.wait(self._context.settings.poll_interval_seconds)
@@ -154,16 +146,13 @@ class WorkerService:
     def _run_transactions_iteration(self, runtime: ContractRuntimeConfig, contract: Contract,
                                     probability: float | None, minimum: int) -> None:
         """
-
-        :param runtime:
-        :param contract:
-        :param probability:
-        :param minimum:
-        :return:
+        Execute one transaction polling sweep for one contract.
         """
 
         storage = self._context.storage
-        last_block_number, last_transaction_index = storage.get_contract_transactions_bookmark(runtime.chain_id, contract.address)
+        last_block_number, last_transaction_index = storage.get_contract_transactions_bookmark(
+            runtime.chain_id, contract.address
+        )
         stored_count = storage.get_transactions_count(runtime.chain_id, contract.address)
         start_block = max(last_block_number, 0)
         page = 1
@@ -197,6 +186,8 @@ class WorkerService:
                 if locator <= (last_block_number, last_transaction_index):
                     continue
                 last_seen = locator
+                # The bookmark must advance across every seen transaction, even
+                # when sampling decides not to persist that record.
                 if self._should_store_sampled(stored_count, probability, minimum):
                     to_store.append(normalized)
                     stored_count += 1
@@ -214,13 +205,7 @@ class WorkerService:
     def _events_loop(self, runtime: ContractRuntimeConfig, contract: Contract, event_signature: str,
                      probability: float | None, minimum: int) -> None:
         """
-
-        :param runtime:
-        :param contract:
-        :param event_signature:
-        :param probability:
-        :param minimum:
-        :return:
+        Continuously poll and store one event stream for one contract.
         """
 
         while not self._stop_event.is_set():
@@ -240,13 +225,7 @@ class WorkerService:
     def _run_events_iteration(self, runtime: ContractRuntimeConfig, contract: Contract, event_signature: str,
                               probability: float | None, minimum: int) -> None:
         """
-
-        :param runtime:
-        :param contract:
-        :param event_signature:
-        :param probability:
-        :param minimum:
-        :return:
+        Execute one event polling sweep for one contract and event signature.
         """
 
         storage = self._context.storage
@@ -288,6 +267,8 @@ class WorkerService:
                 if locator <= (last_block_number, last_transaction_index, last_log_index):
                     continue
                 last_seen = locator
+                # The bookmark must also advance across skipped event samples so
+                # the worker does not loop over the same logs forever.
                 if self._should_store_sampled(stored_count, probability, minimum):
                     to_store.append(normalized)
                     stored_count += 1
@@ -306,11 +287,7 @@ class WorkerService:
 
     def _should_store_sampled(self, stored_count: int, probability: float | None, minimum: int) -> bool:
         """
-
-        :param stored_count:
-        :param probability:
-        :param minimum:
-        :return:
+        Decide whether the next record should be persisted under the sampling rule.
         """
 
         if stored_count < minimum:
@@ -323,11 +300,7 @@ class WorkerService:
     def _normalize_transaction(runtime: ContractRuntimeConfig, contract: Contract,
                                transaction: dict[str, Any]) -> dict[str, Any]:
         """
-
-        :param runtime:
-        :param contract:
-        :param transaction:
-        :return:
+        Normalize one Etherscan transaction into the worker storage schema.
         """
 
         tx_hash = transaction["hash"]
@@ -361,10 +334,7 @@ class WorkerService:
     @staticmethod
     def _event_abi_for_signature(contract: Contract, event_signature: str) -> dict[str, Any] | None:
         """
-
-        :param contract:
-        :param event_signature:
-        :return:
+        Find the ABI entry for one canonical event topic signature.
         """
 
         for entry in contract.abi:
@@ -382,12 +352,7 @@ class WorkerService:
     def _normalize_event(contract: Contract, event_signature: str,
                          event_abi: dict[str, Any], log: Any) -> dict[str, Any]:
         """
-
-        :param contract:
-        :param event_signature:
-        :param event_abi:
-        :param log:
-        :return:
+        Normalize one RPC log into the worker storage schema.
         """
 
         decoded = get_event_data(contract.w3.codec, event_abi, log)
@@ -405,9 +370,7 @@ class WorkerService:
 
 def build_worker_context(settings: WorkerSettings) -> WorkerContext:
     """
-
-    :param settings:
-    :return:
+    Resolve the worker configuration, storage backend, and loaded contracts.
     """
 
     storage = MongoDBStorage.from_uri(settings.mongodb_uri, settings.mongodb_database)
@@ -424,9 +387,7 @@ def build_worker_context(settings: WorkerSettings) -> WorkerContext:
 
 def _json_safe_dict(value: Any) -> Any:
     """
-
-    :param value:
-    :return:
+    Convert nested Web3 values into JSON-safe Python primitives.
     """
 
     if isinstance(value, dict):

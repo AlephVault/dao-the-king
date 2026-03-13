@@ -1,18 +1,19 @@
 from __future__ import annotations
 import json
 import os
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 from daotheking.core.contracts.models import ChainEntry, ContractEntry, ContractsFile, RetrievalSampling
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def _env_flag(name: str, default: bool = False) -> bool:
     """
-
-    :param name:
-    :param default:
-    :return:
+    Read a boolean flag from the environment using common truthy values.
     """
 
     value = os.getenv(name)
@@ -24,7 +25,7 @@ def _env_flag(name: str, default: bool = False) -> bool:
 @dataclass(slots=True)
 class WorkerSettings:
     """
-
+    Environment-driven runtime configuration for the worker process.
     """
 
     mongodb_uri: str
@@ -40,8 +41,7 @@ class WorkerSettings:
     @classmethod
     def from_env(cls) -> "WorkerSettings":
         """
-
-        :return:
+        Build worker settings from environment variables.
         """
 
         contracts_file_path = os.getenv("DTK_CONTRACTS_FILE")
@@ -69,7 +69,7 @@ class WorkerSettings:
 @dataclass(slots=True)
 class ContractRuntimeConfig:
     """
-
+    One configured contract together with the chain it belongs to.
     """
 
     chain_id: int
@@ -79,9 +79,7 @@ class ContractRuntimeConfig:
 
 def load_runtime_config(path: str) -> list[ContractRuntimeConfig]:
     """
-
-    :param path:
-    :return:
+    Parse the contracts file and flatten it into per-contract runtime entries.
     """
 
     target = Path(path)
@@ -97,9 +95,7 @@ def load_runtime_config(path: str) -> list[ContractRuntimeConfig]:
 
 def retrieve_sampling(rule: bool | RetrievalSampling) -> tuple[bool, float | None, int]:
     """
-
-    :param rule:
-    :return:
+    Convert a retrieval rule into `(enabled, probability, minimum)`.
     """
 
     if rule is False:
@@ -112,10 +108,7 @@ def retrieve_sampling(rule: bool | RetrievalSampling) -> tuple[bool, float | Non
 def iter_requested_events(runtime: ContractRuntimeConfig, contract_abi: list[dict[str, object]])\
         -> Iterable[tuple[str, bool | RetrievalSampling]]:
     """
-
-    :param runtime:
-    :param contract_abi:
-    :return:
+    Resolve the configured event selection into canonical topic signatures.
     """
 
     events_rule = runtime.contract.retrieve.events
@@ -126,22 +119,27 @@ def iter_requested_events(runtime: ContractRuntimeConfig, contract_abi: list[dic
         return [(format_event_topic_signature(entry), True) for entry in event_entries]
 
     resolved: list[tuple[str, bool | RetrievalSampling]] = []
+    seen_signatures: set[str] = set()
     for requested_name, rule in events_rule.items():
         matches = [
             entry
             for entry in event_entries
             if event_matches_request(entry, requested_name)
         ]
+        if not matches:
+            LOGGER.warning("Configured event selector %s did not match any ABI event", requested_name)
         for entry in matches:
-            resolved.append((format_event_topic_signature(entry), rule))
+            signature = format_event_topic_signature(entry)
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            resolved.append((signature, rule))
     return resolved
 
 
 def _split_array_suffix(type_name: str) -> tuple[str, str]:
     """
-
-    :param type_name:
-    :return:
+    Split an ABI type into its base type and any array suffix.
     """
 
     if "[" not in type_name:
@@ -152,9 +150,7 @@ def _split_array_suffix(type_name: str) -> tuple[str, str]:
 
 def format_abi_type(parameter: dict[str, object]) -> str:
     """
-
-    :param parameter:
-    :return:
+    Render one ABI parameter type in canonical Solidity form.
     """
 
     type_name = str(parameter.get("type", ""))
@@ -170,10 +166,7 @@ def format_abi_type(parameter: dict[str, object]) -> str:
 
 def format_event_signature(entry: dict[str, object], *, include_names: bool = True) -> str:
     """
-
-    :param entry:
-    :param include_names:
-    :return:
+    Render an event signature, optionally including parameter names.
     """
 
     rendered_inputs: list[str] = []
@@ -193,9 +186,7 @@ def format_event_signature(entry: dict[str, object], *, include_names: bool = Tr
 
 def format_event_topic_signature(entry: dict[str, object]) -> str:
     """
-
-    :param entry:
-    :return:
+    Render the canonical event topic signature used for keccak matching.
     """
 
     rendered_inputs = []
@@ -207,10 +198,7 @@ def format_event_topic_signature(entry: dict[str, object]) -> str:
 
 def event_matches_request(entry: dict[str, object], requested_name: str) -> bool:
     """
-
-    :param entry:
-    :param requested_name:
-    :return:
+    Check whether one configured selector matches one ABI event entry.
     """
 
     simple_name = str(entry.get("name", ""))

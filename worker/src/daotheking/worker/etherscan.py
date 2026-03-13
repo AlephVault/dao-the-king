@@ -13,7 +13,7 @@ ETHERSCAN_V2_URL = "https://api.etherscan.io/v2/api"
 @dataclass(slots=True)
 class EtherscanTransactionsResponse:
     """
-
+    Result of fetching one transactions page from Etherscan V2.
     """
 
     ok: bool
@@ -32,15 +32,7 @@ def fetch_transactions_page(
     timeout: float,
 ) -> EtherscanTransactionsResponse:
     """
-
-    :param api_key:
-    :param chain_id:
-    :param address:
-    :param start_block:
-    :param page:
-    :param offset:
-    :param timeout:
-    :return:
+    Fetch one ascending page of normal transactions for an address.
     """
 
     params = urlencode(
@@ -67,10 +59,13 @@ def fetch_transactions_page(
     result = payload.get("result")
     if message == "NOTOK":
         result_text = str(result or "")
+        # Etherscan reports empty result sets through the same envelope as real
+        # failures, so the worker must single this case out explicitly.
         if "no transactions found" in result_text.lower():
             return EtherscanTransactionsResponse(ok=True, transactions=[])
         return EtherscanTransactionsResponse(ok=False, transactions=[], error_message=result_text or "etherscan error")
 
     if not isinstance(result, list):
-        return EtherscanTransactionsResponse(ok=False, transactions=[], error_message="etherscan tx payload is not a list")
+        return EtherscanTransactionsResponse(ok=False, transactions=[],
+                                             error_message="etherscan tx payload is not a list")
     return EtherscanTransactionsResponse(ok=True, transactions=result)

@@ -6,8 +6,7 @@ from .service import WorkerService, build_worker_context
 
 def main() -> int:
     """
-
-    :return:
+    Bootstrap the worker from environment configuration and run it.
     """
 
     logging.basicConfig(
