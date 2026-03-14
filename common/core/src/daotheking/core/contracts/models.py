@@ -2,7 +2,7 @@ from __future__ import annotations
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class RetrievalSampling(BaseModel):
@@ -67,14 +67,14 @@ class ChainEntry(BaseModel):
     """
 
     name: str
-    rpc: HttpUrl
+    rpc: AnyHttpUrl
     contracts: list[ContractEntry] = Field(default_factory=list)
 
     @field_validator("rpc")
     @classmethod
-    def validate_https(cls, value: HttpUrl) -> HttpUrl:
-        if value.scheme != "https":
-            raise ValueError("rpc must be an https URL")
+    def validate_http_scheme(cls, value: AnyHttpUrl) -> AnyHttpUrl:
+        if value.scheme not in {"http", "https"}:
+            raise ValueError("rpc must be an http or https URL")
         return value
 
 
