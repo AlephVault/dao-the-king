@@ -63,12 +63,13 @@ def test_normalize_transaction_includes_result_and_receipt() -> None:
         "input": "0xa9059cbb00000000",
     }
     normalized = WorkerService._normalize_transaction(runtime, contract, transaction)
-    assert normalized["result"] == {"status": 1}
-    assert normalized["receipt"] == {"status": 1}
+    assert normalized["result"] == {"status": "1"}
+    assert normalized["receipt"] == {"status": "1"}
     assert normalized["decoded_input"]["function_name"] == "transfer"
     assert normalized["decoded_input"]["function_signature"] == "transfer(address,uint256)"
     assert normalized["method_selector"] == "0xa9059cbb"
     assert normalized["decoded_input"]["method_selector"] == "0xa9059cbb"
+    assert normalized["decoded_input"]["arguments"]["value"] == "2"
 
 
 def test_normalize_event_uses_hash_as_primary_identity(monkeypatch) -> None:
@@ -94,6 +95,7 @@ def test_normalize_event_uses_hash_as_primary_identity(monkeypatch) -> None:
     )
     assert normalized["event"] == normalized["event_hash"]
     assert normalized["event_signature"] == "Transfer(address,address,uint256)"
+    assert normalized["args"]["value"] == "1"
 
 
 class _DummyFunctionAbi:
