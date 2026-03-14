@@ -91,13 +91,14 @@ class MongoDBStorage(StorageBackend):
         Store or replace the cached badge payload for a contract.
         """
 
+        sanitized_cache = _mongo_safe_value(cache_object)
         self._contract_cache.update_one(
             {"chain_id": chain_id, "contract_address": contract_address},
             {
                 "$set": {
                     "chain_id": chain_id,
                     "contract_address": contract_address,
-                    **cache_object,
+                    **sanitized_cache,
                 }
             },
             upsert=True,
@@ -166,12 +167,17 @@ class MongoDBStorage(StorageBackend):
         operations = []
         for transaction in transactions:
             tx_hash = str(transaction["hash"])
-            payload = {
+            payload = _mongo_safe_value({
                 "chain_id": chain_id,
                 "contract_address": contract_address,
                 "hash": tx_hash,
                 **transaction,
-            }
+            })
+            payload["chain_id"] = chain_id
+            payload["contract_address"] = contract_address
+            payload["hash"] = tx_hash
+            payload["block_number"] = int(transaction["block_number"])
+            payload["transaction_index"] = int(transaction["transaction_index"])
             operations.append(
                 pymongo.UpdateOne(
                     {"chain_id": chain_id, "contract_address": contract_address, "hash": tx_hash},
@@ -289,13 +295,17 @@ class MongoDBStorage(StorageBackend):
                 "transaction_index": int(event.get("transaction_index", -1)),
                 "log_index": int(event.get("log_index", -1)),
             }
-            payload = {
+            payload = _mongo_safe_value({
                 "chain_id": chain_id,
                 "contract_address": contract_address,
                 "event": event_name,
                 **locator,
                 **event,
-            }
+            })
+            payload["chain_id"] = chain_id
+            payload["contract_address"] = contract_address
+            payload["event"] = event_name
+            payload.update(locator)
             operations.append(
                 pymongo.UpdateOne(
                     {
@@ -360,3 +370,27 @@ def _strip_id(document: dict[str, Any] | None) -> dict[str, Any] | None:
     result = dict(document)
     result.pop("_id", None)
     return result
+
+
+def _mongo_safe_value(value: Any) -> Any:
+    """
+    Convert nested values into MongoDB-safe primitives while preserving
+    top-level locator fields that callers explicitly restore after sanitizing.
+    """
+
+    if isinstance(value, dict):
+        return {str(key): _mongo_safe_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_mongo_safe_value(item) for item in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, bytes):
+        return "0x" + value.hex()
+    if hasattr(value, "hex") and callable(value.hex):
+        try:
+            return value.hex()
+        except TypeError:
+            return str(value)
+    return value
