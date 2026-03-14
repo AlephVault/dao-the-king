@@ -6,11 +6,11 @@ from typing import Any
 import streamlit as st
 from web3 import Web3
 from web3.contract import Contract
-from .abi import format_event_signature, format_function_signature, format_topic_signature, function_key
-from .data import ServerData, function_entries, load_server_data
-from .forms import render_parameter_input
-from .settings import ServerSettings
-from .wallet import render_wallet_panel
+from server.abi import format_event_signature, format_function_signature, format_topic_signature, function_key
+from server.data import ServerData, function_entries, load_server_data
+from server.forms import render_parameter_input
+from server.settings import ServerSettings
+from server.wallet import render_wallet_panel
 
 
 def main() -> None:

@@ -12,7 +12,7 @@ dependencies = [
   "daotheking-core",
   "pymongo>=4.10,<5",
   "streamlit>=1.42,<2",
-  "streamlit-browser-web3",
+  "streamlit-browser-web3>=0.1",
 ]
 
 [project.optional-dependencies]

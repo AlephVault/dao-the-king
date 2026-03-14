@@ -13,4 +13,4 @@ RUN pip install --no-cache-dir /app/server
 
 WORKDIR /app/server
 
-CMD ["streamlit", "run", "src/daotheking/server/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
