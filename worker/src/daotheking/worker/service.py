@@ -327,12 +327,12 @@ class WorkerService:
                 function_abi, arguments = contract.decode_function_input(input_data)
                 canonical_signature = WorkerService._function_signature(function_abi.abi)
                 method_selector = WorkerService._function_selector(canonical_signature)
-                decoded_input = {
+                decoded_input = _json_safe_dict({
                     "function_name": function_abi.fn_name,
                     "function_signature": canonical_signature,
                     "method_selector": method_selector,
                     "arguments": dict(arguments),
-                }
+                })
             except Exception:
                 decoded_input = None
 
@@ -463,6 +463,10 @@ def _json_safe_dict(value: Any) -> Any:
         return {str(key): _json_safe_dict(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_json_safe_dict(item) for item in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return str(value)
     if isinstance(value, bytes):
         return "0x" + value.hex()
     if hasattr(value, "hex") and callable(value.hex):
