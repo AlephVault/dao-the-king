@@ -38,6 +38,10 @@ def get_wallet_view() -> WalletView:
     """
 
     wallet = wallet_get()
+    if wallet.status == "connected" and wallet.last_error:
+        # Clear stale component errors after the wallet reaches a healthy
+        # connected state so the sidebar matches the main-page status.
+        wallet._state["last_error"] = None
     selected_account_key = "wallet:selected_account"
     selected_account = st.session_state.get(selected_account_key)
     if wallet.accounts:
