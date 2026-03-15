@@ -1,10 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import json
+from pathlib import Path
 import streamlit as st
 from eth_typing import ABIElement
 from web3.contract import Contract
 from daotheking.core import MongoDBStorage, load_contracts
 from daotheking.core.contracts.loader import ContractLoadResult
+from daotheking.core.contracts.models import ContractsFile
 from .abi import badge_function_keys, function_key
 from .settings import ServerSettings
 
@@ -22,6 +25,7 @@ class ServerData:
     settings: ServerSettings
     storage: MongoDBStorage
     contracts: dict[int, dict[str, ContractLoadResult]]
+    chain_names: dict[int, str]
     badge_methods: dict[str, set[str]]
 
 
@@ -36,6 +40,8 @@ def load_server_data(settings: ServerSettings) -> ServerData:
     """
 
     storage = MongoDBStorage.from_uri(settings.mongodb_uri, settings.mongodb_database)
+    with Path(settings.contracts_file_path).open("r", encoding="utf-8") as handle:
+        contracts_file = ContractsFile.model_validate(json.load(handle))
     contracts, error = load_contracts(
         contracts_file_path=settings.contracts_file_path,
         etherscan_api_key=settings.etherscan_api_key,
@@ -47,6 +53,7 @@ def load_server_data(settings: ServerSettings) -> ServerData:
         settings=settings,
         storage=storage,
         contracts=contracts,
+        chain_names={chain_id: chain.name for chain_id, chain in contracts_file.chains.items()},
         badge_methods=badge_function_keys(),
     )
 
