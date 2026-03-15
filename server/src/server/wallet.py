@@ -1,10 +1,9 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
-
 import streamlit as st
 from streamlit_browser_web3 import wallet_get
+from web3 import Web3
 
 
 @dataclass(slots=True)
@@ -26,7 +25,7 @@ class WalletView:
 
     @property
     def accounts(self) -> list[str]:
-        return list(self.wallet.accounts)
+        return [Web3.to_checksum_address(a) for a in self.wallet.accounts]
 
     def can_transact(self, *, expected_chain_id: int) -> bool:
         return self.connected and self.chain_id == expected_chain_id and self.selected_account is not None
@@ -61,24 +60,13 @@ def render_wallet_sidebar(wallet_view: WalletView) -> None:
 
     wallet = wallet_view.wallet
     st.subheader("Wallet")
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.write(f"Status: {'Connected' if wallet_view.connected else 'Disconnected'}")
-    with col2:
-        if wallet_view.connected:
-            if st.button("Disconnect wallet", key="wallet-disconnect", disabled=wallet.busy):
-                wallet.disconnect()
-        else:
-            if st.button("Connect wallet", key="wallet-connect", disabled=wallet.busy):
-                wallet.connect()
-
-    if wallet.last_error:
-        st.error(wallet.last_error)
-
     if wallet.status == "not-available":
         st.warning("No browser wallet provider is available.")
         return
 
+    st.write(f"Status: {f'Connected (chain id: {wallet_view.chain_id})'
+                        if wallet_view.connected else
+                        'Disconnected'}")
     if wallet_view.connected:
         if wallet_view.chain_id is not None:
             st.write(f"Current chain: `{wallet_view.chain_id}`")
@@ -90,6 +78,15 @@ def render_wallet_sidebar(wallet_view: WalletView) -> None:
         )
         st.session_state["wallet:selected_account"] = selected
         wallet_view.selected_account = selected
+
+        if st.button("Disconnect wallet", key="wallet-disconnect", disabled=wallet.busy):
+            wallet.disconnect()
+    else:
+        if st.button("Connect wallet", key="wallet-connect", disabled=wallet.busy):
+            wallet.connect()
+
+    if wallet.last_error:
+        st.error(wallet.last_error)
 
 
 def render_chain_wallet_prompt(wallet_view: WalletView, *, expected_chain_id: int) -> None:
