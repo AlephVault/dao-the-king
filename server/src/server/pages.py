@@ -9,7 +9,7 @@ from daotheking.core.contracts.loader import ContractLoadResult
 from .abi import format_event_signature, format_function_signature, format_topic_signature, function_key
 from .data import ServerData, function_entries
 from .forms import render_parameter_input
-from .navigation import chain_label, render_breadcrumbs, set_query_params
+from .navigation import chain_label, set_query_params
 from .wallet import WalletView, render_chain_wallet_prompt
 
 
@@ -38,7 +38,6 @@ def render_chain_page(data: ServerData, wallet_view: WalletView, chain_id: int) 
     Render the per-chain page with its contract list.
     """
 
-    render_breadcrumbs([("Supported Chains", "main")])
     st.header(chain_label(data, chain_id))
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
     st.subheader("Supported Contracts")
@@ -62,12 +61,6 @@ def render_contract_page(
     Render the contract overview page.
     """
 
-    render_breadcrumbs(
-        [
-            ("Supported Chains", "main"),
-            (str(chain_id), f"chain:{chain_id}"),
-        ]
-    )
     st.header(chain_label(data, chain_id) + " - " + contract_address)
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
 
@@ -118,13 +111,6 @@ def render_method_page(
     Render the method interaction page.
     """
 
-    render_breadcrumbs(
-        [
-            ("Supported Chains", "main"),
-            (str(chain_id), f"chain:{chain_id}"),
-            (contract_address, f"contract:{chain_id}:{contract_address}"),
-        ]
-    )
     st.header(chain_label(data, chain_id))
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
 
