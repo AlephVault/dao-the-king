@@ -1,0 +1,30 @@
+sender__
+signer__
+await _
+sender__.sendTransaction({to: "0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b041c7", value: 1000000000000000000n})
+sender__.sendTransaction
+const [sender__] = await ethers.getSigners();
+const { ethers } = await network.connect()
+const [sender_] = await hre.ethers.getSigners();
+const [sender] = await hre.ethers.getSigners();
+const [sender] = await ethers.getSigners();
+await token.transfer("0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b041c7", 1000000000000000000n)
+"0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b04".length
+await token.transfer("0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b04", 1000000000000000000n)
+await token.transfer("0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b04", "1000000000000000000")
+const { token } = await ignition.deploy(Module);
+const Module = (await import("./ignition/modules/SampleERC20.js")).default;
+const { ignition } = await network.connect();
+await deployed.token.transfer("0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b04", "1000000000000000000")
+await deployed.token.mint("0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b04", "1000000000000000000")
+0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b04
+0x84f5b76cdf2bb477cf3d85d4fd31b98fe3b041c7
+await deployed.token.mint("", "1000000000000000000")
+deployed.token
+const deployed = await ignition.deploy(SampleERC20Module);
+const SampleERC20Module = (await import("./ignition/modules/SampleERC20.js")).default;
+ignition
+ignition.getDeployedContract
+const { ignition } = await network.connect()
+hre.getDeployedContract
+hre.ignitionig.ignitionig.ignition.getDeployedContract
