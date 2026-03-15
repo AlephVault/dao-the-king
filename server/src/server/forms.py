@@ -96,8 +96,10 @@ def _render_address_input(label: str, key: str) -> tuple[str, str | None]:
         return value, "Expected 20-byte address"
     if not _is_hex_payload(value[2:]):
         return value, "Expected hexadecimal address"
-    if Web3.is_address(value):
+    if Web3.is_checksum_address(value):
         return value, None
+    if Web3.is_address(value):
+        return value, "Expected checksum address"
     return value, "Expected EVM address"
 
 
