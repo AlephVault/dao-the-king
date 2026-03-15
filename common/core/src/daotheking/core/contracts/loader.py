@@ -34,14 +34,47 @@ def _validate_abi_payload(abi: list[dict[str, Any]]) -> None:
 
     valid_entry_types = {"constructor", "function", "event", "fallback", "receive", "error"}
     valid_state_mutabilities = {"pure", "view", "nonpayable", "payable"}
+    valid_base_types = {
+        "address",
+        "bool",
+        "bytes",
+        "int",
+        "string",
+        "tuple",
+        "uint",
+    }
+    valid_base_types.update({f"uint{size}" for size in range(8, 257, 8)})
+    valid_base_types.update({f"int{size}" for size in range(8, 257, 8)})
+    valid_base_types.update({f"bytes{size}" for size in range(1, 33)})
 
     def _require(condition: bool, message: str) -> None:
         if not condition:
             raise ValueError(message)
 
+    def _validate_parameter_type(type_name: str, *, path: str) -> None:
+        base_type = type_name
+        array_suffix = ""
+        bracket_index = type_name.find("[")
+        if bracket_index != -1:
+            base_type = type_name[:bracket_index]
+            array_suffix = type_name[bracket_index:]
+
+        _require(base_type in valid_base_types, f"{path}.type has an invalid base type: {base_type!r}")
+
+        cursor = 0
+        while cursor < len(array_suffix):
+            _require(array_suffix[cursor] == "[", f"{path}.type has an invalid array suffix")
+            closing = array_suffix.find("]", cursor + 1)
+            _require(closing != -1, f"{path}.type has an unterminated array suffix")
+            length_text = array_suffix[cursor + 1:closing]
+            _require(length_text == "" or length_text.isdigit(), f"{path}.type has an invalid array length: {length_text!r}")
+            cursor = closing + 1
+        _require(cursor == len(array_suffix), f"{path}.type has an invalid array suffix")
+
     def _validate_parameter(parameter: Any, *, path: str, allow_indexed: bool) -> None:
         _require(isinstance(parameter, dict), f"{path} must be an object")
         _require(isinstance(parameter.get("type"), str) and parameter["type"].strip() != "", f"{path}.type must be a non-empty string")
+        _validate_parameter_type(parameter["type"], path=path)
         if "name" in parameter:
             _require(isinstance(parameter["name"], str), f"{path}.name must be a string")
         if "internalType" in parameter:
