@@ -61,7 +61,17 @@ def render_wallet_sidebar(wallet_view: WalletView) -> None:
 
     wallet = wallet_view.wallet
     st.subheader("Wallet")
-    st.write(f"Status: {'Connected' if wallet_view.connected else 'Disconnected'}")
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.write(f"Status: {'Connected' if wallet_view.connected else 'Disconnected'}")
+    with col2:
+        if wallet_view.connected:
+            if st.button("Disconnect wallet", key="wallet-disconnect", disabled=wallet.busy):
+                wallet.disconnect()
+        else:
+            if st.button("Connect wallet", key="wallet-connect", disabled=wallet.busy):
+                wallet.connect()
+
     if wallet.last_error:
         st.error(wallet.last_error)
 
@@ -70,8 +80,6 @@ def render_wallet_sidebar(wallet_view: WalletView) -> None:
         return
 
     if wallet_view.connected:
-        if st.button("Disconnect wallet", key="wallet-disconnect", disabled=wallet.busy):
-            wallet.disconnect()
         if wallet_view.chain_id is not None:
             st.write(f"Current chain: `{wallet_view.chain_id}`")
         selected = st.selectbox(
@@ -82,9 +90,6 @@ def render_wallet_sidebar(wallet_view: WalletView) -> None:
         )
         st.session_state["wallet:selected_account"] = selected
         wallet_view.selected_account = selected
-    else:
-        if st.button("Connect wallet", key="wallet-connect", disabled=wallet.busy):
-            wallet.connect()
 
 
 def render_chain_wallet_prompt(wallet_view: WalletView, *, expected_chain_id: int) -> None:

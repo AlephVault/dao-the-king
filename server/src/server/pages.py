@@ -1,19 +1,15 @@
 from __future__ import annotations
-
 import json
 from math import ceil
 from typing import Any
-
 import streamlit as st
 from web3 import Web3
 from web3.contract import Contract
-
 from daotheking.core.contracts.loader import ContractLoadResult
-
 from .abi import format_event_signature, format_function_signature, format_topic_signature, function_key
 from .data import ServerData, function_entries
 from .forms import render_parameter_input
-from .navigation import app_url, chain_label, render_breadcrumbs, set_query_params
+from .navigation import chain_label, render_breadcrumbs, set_query_params
 from .wallet import WalletView, render_chain_wallet_prompt
 
 
@@ -29,7 +25,12 @@ def render_main_page(data: ServerData) -> None:
     )
     st.subheader("Supported Chains")
     for chain_id in sorted(data.contracts):
-        st.markdown(f"- [{chain_label(data, chain_id)}]({app_url(chain_id=chain_id)})")
+        if st.button(
+            chain_label(data, chain_id),
+            key=f"main:chain:{chain_id}",
+            use_container_width=True,
+        ):
+            set_query_params(chain_id=chain_id)
 
 
 def render_chain_page(data: ServerData, wallet_view: WalletView, chain_id: int) -> None:
@@ -37,12 +38,17 @@ def render_chain_page(data: ServerData, wallet_view: WalletView, chain_id: int) 
     Render the per-chain page with its contract list.
     """
 
-    render_breadcrumbs([("Supported Chains", app_url())])
+    render_breadcrumbs([("Supported Chains", "main")])
     st.header(chain_label(data, chain_id))
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
     st.subheader("Supported Contracts")
     for address in sorted(data.contracts[chain_id]):
-        st.markdown(f"- [{address}]({app_url(chain_id=chain_id, contract=address)})")
+        if st.button(
+            address,
+            key=f"chain:{chain_id}:contract:{address}",
+            use_container_width=True,
+        ):
+            set_query_params(chain_id=chain_id, contract=address)
 
 
 def render_contract_page(
@@ -58,12 +64,11 @@ def render_contract_page(
 
     render_breadcrumbs(
         [
-            ("Supported Chains", app_url()),
-            (str(chain_id), app_url(chain_id=chain_id)),
+            ("Supported Chains", "main"),
+            (str(chain_id), f"chain:{chain_id}"),
         ]
     )
-    st.header(contract_address)
-    st.caption(chain_label(data, chain_id))
+    st.header(chain_label(data, chain_id) + " - " + contract_address)
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
 
     if result.error is not None or result.contract is None:
@@ -115,12 +120,12 @@ def render_method_page(
 
     render_breadcrumbs(
         [
-            ("Supported Chains", app_url()),
-            (str(chain_id), app_url(chain_id=chain_id)),
-            (contract_address, app_url(chain_id=chain_id, contract=contract_address)),
+            ("Supported Chains", "main"),
+            (str(chain_id), f"chain:{chain_id}"),
+            (contract_address, f"contract:{chain_id}:{contract_address}"),
         ]
     )
-    st.caption(chain_label(data, chain_id))
+    st.header(chain_label(data, chain_id))
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
 
     if result.error is not None or result.contract is None:
