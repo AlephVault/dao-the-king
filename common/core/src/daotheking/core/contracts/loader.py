@@ -29,14 +29,92 @@ class ContractLoadResult:
 
 def _validate_abi_payload(abi: list[dict[str, Any]]) -> None:
     """
-    Validate that a decoded ABI payload has the minimal list-of-objects shape.
+    Validate that a decoded ABI payload matches the Solidity JSON ABI shape.
     """
 
+    valid_entry_types = {"constructor", "function", "event", "fallback", "receive", "error"}
+    valid_state_mutabilities = {"pure", "view", "nonpayable", "payable"}
+
+    def _require(condition: bool, message: str) -> None:
+        if not condition:
+            raise ValueError(message)
+
+    def _validate_parameter(parameter: Any, *, path: str, allow_indexed: bool) -> None:
+        _require(isinstance(parameter, dict), f"{path} must be an object")
+        _require(isinstance(parameter.get("type"), str) and parameter["type"].strip() != "", f"{path}.type must be a non-empty string")
+        if "name" in parameter:
+            _require(isinstance(parameter["name"], str), f"{path}.name must be a string")
+        if "internalType" in parameter:
+            _require(isinstance(parameter["internalType"], str), f"{path}.internalType must be a string")
+        if "indexed" in parameter:
+            _require(allow_indexed, f"{path}.indexed is only valid for event inputs")
+            _require(isinstance(parameter["indexed"], bool), f"{path}.indexed must be a boolean")
+
+        parameter_type = parameter["type"]
+        has_components = "components" in parameter
+        is_tuple = parameter_type == "tuple" or parameter_type.startswith("tuple[")
+        _require(has_components == is_tuple, f"{path}.components must be present if and only if the type is tuple-based")
+        if has_components:
+            components = parameter["components"]
+            _require(isinstance(components, list), f"{path}.components must be a list")
+            for component_index, component in enumerate(components):
+                _validate_parameter(
+                    component,
+                    path=f"{path}.components[{component_index}]",
+                    allow_indexed=False,
+                )
+
     for index, entry in enumerate(abi):
-        if not isinstance(entry, dict):
-            raise ValueError(f"ABI entry at index {index} must be an object")
-        if "type" not in entry:
-            raise ValueError(f"ABI entry at index {index} must define a type")
+        path = f"ABI entry at index {index}"
+        _require(isinstance(entry, dict), f"{path} must be an object")
+        _require(isinstance(entry.get("type"), str), f"{path}.type must be a string")
+        entry_type = entry["type"]
+        _require(entry_type in valid_entry_types, f"{path}.type must be one of {sorted(valid_entry_types)}")
+
+        if entry_type in {"function", "event", "error"}:
+            _require(isinstance(entry.get("name"), str) and entry["name"].strip() != "", f"{path}.name must be a non-empty string")
+        else:
+            _require("name" not in entry, f"{path}.name is not valid for {entry_type} entries")
+
+        if entry_type in {"constructor", "function", "event", "error"}:
+            _require(isinstance(entry.get("inputs"), list), f"{path}.inputs must be a list")
+            for input_index, parameter in enumerate(entry["inputs"]):
+                _validate_parameter(
+                    parameter,
+                    path=f"{path}.inputs[{input_index}]",
+                    allow_indexed=entry_type == "event",
+                )
+        else:
+            _require("inputs" not in entry or entry["inputs"] == [], f"{path}.inputs must be omitted or empty for {entry_type} entries")
+
+        if entry_type == "function":
+            _require(isinstance(entry.get("outputs"), list), f"{path}.outputs must be a list")
+            for output_index, parameter in enumerate(entry["outputs"]):
+                _validate_parameter(
+                    parameter,
+                    path=f"{path}.outputs[{output_index}]",
+                    allow_indexed=False,
+                )
+        else:
+            _require("outputs" not in entry or entry["outputs"] == [], f"{path}.outputs must be omitted or empty for {entry_type} entries")
+
+        if entry_type in {"constructor", "function", "fallback", "receive"}:
+            _require(
+                isinstance(entry.get("stateMutability"), str) and entry["stateMutability"] in valid_state_mutabilities,
+                f"{path}.stateMutability must be one of {sorted(valid_state_mutabilities)}",
+            )
+        else:
+            _require("stateMutability" not in entry, f"{path}.stateMutability is not valid for {entry_type} entries")
+
+        if entry_type == "receive":
+            _require(entry["stateMutability"] == "payable", f"{path}.stateMutability must be payable for receive entries")
+        if entry_type == "constructor":
+            _require(entry["stateMutability"] in {"nonpayable", "payable"}, f"{path}.constructor cannot be view or pure")
+        if entry_type == "fallback":
+            _require(entry["stateMutability"] in {"nonpayable", "payable"}, f"{path}.fallback cannot be view or pure")
+        if entry_type == "event":
+            if "anonymous" in entry:
+                _require(isinstance(entry["anonymous"], bool), f"{path}.anonymous must be a boolean")
 
 
 def _read_contracts_file(path: str | None) -> ContractsFile:
