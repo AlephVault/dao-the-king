@@ -3,7 +3,7 @@ import pytest
 
 from daotheking.core.contracts import known_abis
 from daotheking.core.contracts.loader import _validate_abi_payload, load_contracts
-from daotheking.core.contracts.models import ContractLoadError
+from daotheking.core.contracts.models import ContractEntry, ContractLoadError
 
 
 def test_load_contracts_returns_invalid_abi_for_malformed_abi_file(tmp_path) -> None:
@@ -126,3 +126,9 @@ def test_validate_abi_payload_accepts_valid_parameter_array_suffixes() -> None:
             }
         ]
     )
+
+
+def test_contract_entry_normalizes_blank_name_to_none() -> None:
+    entry = ContractEntry(address="0x0000000000000000000000000000000000000000", name="   ")
+
+    assert entry.name is None

@@ -44,13 +44,23 @@ class ContractRetrieveSpec(BaseModel):
 class ContractEntry(BaseModel):
     """
     The specification for a contract entry. It
-    includes the ABI file, the address, and the
-    specifications for what to retrieve.
+    includes the contract address, optional name,
+    ABI file, and the specifications for what to
+    retrieve.
     """
 
     address: str
+    name: str | None = None
     abi: str | None = None
     retrieve: ContractRetrieveSpec = Field(default_factory=ContractRetrieveSpec)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
     @field_validator("abi")
     @classmethod
