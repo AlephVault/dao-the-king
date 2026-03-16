@@ -46,7 +46,8 @@ def main() -> None:
     current_page = render_contracts_sidebar(data, render_current_page)
 
     with st.sidebar:
-        render_wallet_sidebar(wallet_view)
+        with st.container(border=True):
+            render_wallet_sidebar(wallet_view)
 
     current_page.run()
 
