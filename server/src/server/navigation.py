@@ -3,7 +3,7 @@ import hashlib
 from collections.abc import Callable
 import streamlit as st
 from .abi import function_key
-from .data import ServerData, function_entries
+from .data import ServerData, contract_label, function_entries
 
 
 PageRenderer = Callable[[int | None, str | None, str | None], None]
@@ -153,7 +153,7 @@ def _build_navigation_pages(data: ServerData, render_page: PageRenderer) -> list
             pages.append(
                 _navigation_page(
                     render_page,
-                    title=address,
+                    title=contract_label(data, available_chain_id, address),
                     chain_id=available_chain_id,
                     contract=address,
                     icon=CONTRACT_ICON,

@@ -7,7 +7,7 @@ from web3 import Web3
 from web3.contract import Contract
 from daotheking.core.contracts.loader import ContractLoadResult
 from .abi import format_event_signature, format_function_signature, format_topic_signature, function_key
-from .data import ServerData, function_entries
+from .data import ServerData, contract_label, function_entries
 from .forms import render_parameter_input
 from .navigation import chain_label, set_query_params
 from .wallet import WalletView, render_chain_wallet_prompt
@@ -43,7 +43,7 @@ def render_chain_page(data: ServerData, wallet_view: WalletView, chain_id: int) 
     st.subheader("Supported Contracts")
     for address in sorted(data.contracts[chain_id]):
         if st.button(
-            address,
+            contract_label(data, chain_id, address),
             key=f"chain:{chain_id}:contract:{address}",
             use_container_width=True,
         ):
@@ -61,7 +61,8 @@ def render_contract_page(
     Render the contract overview page.
     """
 
-    st.header(chain_label(data, chain_id) + " - " + contract_address)
+    st.header(chain_label(data, chain_id) + " - " + contract_label(data, chain_id, contract_address))
+    st.caption(contract_address)
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
 
     if result.error is not None or result.contract is None:
@@ -112,6 +113,8 @@ def render_method_page(
     """
 
     st.header(chain_label(data, chain_id))
+    st.subheader(contract_label(data, chain_id, contract_address))
+    st.caption(contract_address)
     render_chain_wallet_prompt(wallet_view, expected_chain_id=chain_id)
 
     if result.error is not None or result.contract is None:

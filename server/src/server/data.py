@@ -26,6 +26,7 @@ class ServerData:
     storage: MongoDBStorage
     contracts: dict[int, dict[str, ContractLoadResult]]
     chain_names: dict[int, str]
+    contract_names: dict[int, dict[str, str]]
     badge_methods: dict[str, set[str]]
 
 
@@ -54,6 +55,13 @@ def load_server_data(settings: ServerSettings) -> ServerData:
         storage=storage,
         contracts=contracts,
         chain_names={chain_id: chain.name for chain_id, chain in contracts_file.chains.items()},
+        contract_names={
+            chain_id: {
+                entry.address: entry.name or entry.address
+                for entry in chain.contracts
+            }
+            for chain_id, chain in contracts_file.chains.items()
+        },
         badge_methods=badge_function_keys(),
     )
 
@@ -70,3 +78,11 @@ def function_entries(contract: Contract) -> list[ABIElement]:
     # Sort by the canonical `name(type1,type2,...)` form used everywhere else.
     entries.sort(key=function_key)
     return entries
+
+
+def contract_label(data: ServerData, chain_id: int, contract_address: str) -> str:
+    """
+    Return the configured contract label, falling back to the address.
+    """
+
+    return data.contract_names.get(chain_id, {}).get(contract_address, contract_address)
