@@ -293,8 +293,56 @@ def render_events_section(data: ServerData, chain_id: int, contract_address: str
     offset = (page - 1) * data.settings.events_page_size
     items = data.storage.get_events(chain_id, contract_address, event_key, offset, data.settings.events_page_size)
     st.caption(f"Showing {len(items)} of {count} event(s)")
+
+    selection_state_key = f"event-selection:{chain_id}:{contract_address}:{event_key}"
+    selected_locator = st.session_state.get(selection_state_key)
+    selected_item = next((item for item in items if _event_locator(item) == selected_locator), None)
+    if selected_locator is not None and selected_item is None:
+        st.session_state.pop(selection_state_key, None)
+
+    headers = st.columns([1, 1, 1, 2, 2, 2, 1])
+    for column, label in zip(
+        headers,
+        ["Block", "Tx.", "Log", "Event", "Timestamp", "Log Hash", "Details"],
+        strict=True,
+    ):
+        column.markdown(f"**{label}**")
+
+    if not items:
+        st.info("No stored events found.")
+        return
+
     for item in items:
-        st.json(item)
+        row = st.columns([1, 1, 1, 2, 2, 2, 1], vertical_alignment="center")
+        row[0].write(str(item.get("block_number", "")))
+        row[1].write(str(item.get("transaction_index", "")))
+        row[2].write(str(item.get("log_index", "")))
+        row[3].write(str(item.get("event_signature", "")))
+        row[4].write(_format_event_timestamp(item))
+        row[5].code(item.get("event_hash"))
+        locator = _event_locator(item)
+        if row[6].button(
+            "View",
+            key=f"event-view:{chain_id}:{contract_address}:{event_key}:{locator}",
+        ):
+            st.session_state[selection_state_key] = locator
+            selected_item = item
+
+    if selected_item is None:
+        return
+
+    st.divider()
+    st.caption(f"Current log: {_event_display_id(selected_item)}")
+    st.caption(
+        "Block "
+        f"{selected_item.get('block_number', '')} / "
+        f"Tx. {selected_item.get('transaction_index', '')} / "
+        f"Log. {selected_item.get('log_index', '')}"
+    )
+    st.json(selected_item)
+    if st.button("Close log details", key=f"event-close:{chain_id}:{contract_address}:{event_key}"):
+        st.session_state.pop(selection_state_key, None)
+        st.rerun()
 
 
 def _render_call_action(
@@ -490,6 +538,71 @@ def _format_transaction_timestamp(item: dict[str, Any]) -> str:
         return str(raw_value)
 
     return datetime.fromtimestamp(timestamp, UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
+
+
+def _event_locator(item: dict[str, Any]) -> str:
+    """
+    Return a stable locator string for one stored event item.
+    """
+
+    return ":".join(
+        str(item.get(field, ""))
+        for field in ("block_number", "transaction_index", "log_index")
+    )
+
+
+def _format_event_timestamp(item: dict[str, Any]) -> str:
+    """
+    Render the source transaction timestamp for one stored event when available.
+    """
+
+    log = item.get("log")
+    if not isinstance(log, dict):
+        return ""
+
+    raw_value = None
+    for candidate in ("timeStamp", "timestamp", "blockTimestamp"):
+        raw_value = log.get(candidate)
+        if raw_value not in (None, ""):
+            break
+    if raw_value in (None, ""):
+        return ""
+
+    try:
+        timestamp = int(str(raw_value), 10)
+    except (TypeError, ValueError):
+        return str(raw_value)
+
+    return datetime.fromtimestamp(timestamp, UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
+
+
+def _event_log_hash(item: dict[str, Any]) -> str:
+    """
+    Return a log hash when the upstream payload exposes one.
+    """
+
+    for container in (item, item.get("log")):
+        if not isinstance(container, dict):
+            continue
+        for field in ("log_hash", "logHash"):
+            value = container.get(field)
+            if value:
+                return str(value)
+    return ""
+
+
+def _event_display_id(item: dict[str, Any]) -> str:
+    """
+    Build one short identifier for the selected event details panel.
+    """
+
+    log_hash = _event_log_hash(item)
+    if log_hash:
+        return log_hash
+    transaction_hash = item.get("transaction_hash")
+    if transaction_hash:
+        return str(transaction_hash)
+    return _event_locator(item)
 
 
 def _json_safe(value: Any) -> Any:

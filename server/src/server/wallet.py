@@ -92,45 +92,50 @@ def render_chain_wallet_prompt(wallet_view: WalletView, *, expected_chain_id: in
     Render the chain-selection/connect/disconnect prompt on chain-aware pages.
     """
 
-    if wallet_view.wallet.status == "not-available":
-        st.error("No browser wallet provider is available.")
+    wallet = wallet_view.wallet
+    if wallet.status == "not-available":
+        st.error("No wallet is available in your browser.")
         return
+
     if not wallet_view.connected:
-        st.error("Connect your wallet to use this chain directly from the browser.")
-        if st.button("Connect wallet", key=f"wallet-prompt-connect:{expected_chain_id}",
-                     disabled=wallet_view.wallet.busy):
-            wallet_view.wallet.connect()
+        st.warning("Connect your wallet to use this chain directly from the browser.")
+        if st.button(
+            "Connect wallet",
+            key=f"wallet-prompt-connect:{expected_chain_id}",
+            disabled=wallet.busy,
+            use_container_width=True,
+        ):
+            wallet.connect()
         return
-    if st.button(
-        f"Switch to chain {expected_chain_id}",
-        key=f"wallet-switch-button:{expected_chain_id}",
-        disabled=wallet_view.wallet.busy or wallet_view.chain_id == expected_chain_id,
-        use_container_width=True,
-    ):
-        st.session_state[f"wallet:switch:{expected_chain_id}:requested"] = True
+
     if wallet_view.chain_id != expected_chain_id:
-        st.error(f"Wallet is on chain `{wallet_view.chain_id}`. Switch it to `{expected_chain_id}`.")
-        return
-
-    switch_state_key = f"wallet:switch:{expected_chain_id}:requested"
-    if not st.session_state.get(switch_state_key, False):
         st.warning(f"Wallet is on chain `{wallet_view.chain_id}`. Switch it to `{expected_chain_id}`.")
+        request_key = f"wallet_switchEthereumChain:{expected_chain_id}"
+        request_status = wallet.get_request_status(request_key)
+        if st.button(
+            f"Switch to chain {expected_chain_id}",
+            key=f"wallet-switch-button:{expected_chain_id}",
+            disabled=wallet.busy,
+            use_container_width=True,
+        ):
+            status, result = wallet.request(
+                "wallet_switchEthereumChain",
+                [{"chainId": hex(expected_chain_id)}],
+                key=request_key,
+            )
+            if status == "error":
+                wallet.forget(request_key)
+                st.error(f"Switch failed: {result}")
+                return
+        elif request_status:
+            status_, result = request_status
+            match status_:
+                case "pending":
+                    st.info(f"Waiting for your wallet to switch to chain `{expected_chain_id}`.")
+                case "success":
+                    wallet.forget(request_key)
+                    st.rerun()
+                case "error":
+                    st.error(f"An error occurred while switching chains: {result}")
+                    wallet.forget(request_key)
         return
-
-    request_key = f"wallet_switchEthereumChain:{expected_chain_id}"
-    status, result = wallet_view.wallet.request(
-        "wallet_switchEthereumChain",
-        [{"chainId": hex(expected_chain_id)}],
-        key=request_key,
-    )
-    if status == "pending":
-        st.info(f"Waiting for your wallet to switch to chain `{expected_chain_id}`.")
-        return
-    if status == "error":
-        wallet_view.wallet.forget(request_key)
-        st.session_state[switch_state_key] = False
-        st.error(f"Switch failed: {result}")
-        return
-    wallet_view.wallet.forget(request_key)
-    st.session_state[switch_state_key] = False
-    st.rerun()
