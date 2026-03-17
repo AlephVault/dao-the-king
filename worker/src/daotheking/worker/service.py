@@ -348,7 +348,6 @@ class WorkerService:
             "transaction": _json_safe_dict(transaction),
             "decoded_input": decoded_input,
             "result": result,
-            "receipt": result,
         }
 
     @staticmethod
