@@ -300,10 +300,10 @@ def render_events_section(data: ServerData, chain_id: int, contract_address: str
     if selected_locator is not None and selected_item is None:
         st.session_state.pop(selection_state_key, None)
 
-    headers = st.columns([1, 1, 1, 2, 2, 2, 1])
+    headers = st.columns([1, 1, 1, 2, 2, 1])
     for column, label in zip(
         headers,
-        ["Block", "Tx.", "Log", "Event", "Timestamp", "Log Hash", "Details"],
+        ["Block", "Tx.", "Log", "Event", "Log Hash", "Details"],
         strict=True,
     ):
         column.markdown(f"**{label}**")
@@ -313,15 +313,14 @@ def render_events_section(data: ServerData, chain_id: int, contract_address: str
         return
 
     for item in items:
-        row = st.columns([1, 1, 1, 2, 2, 2, 1], vertical_alignment="center")
+        row = st.columns([1, 1, 1, 2, 2, 1], vertical_alignment="center")
         row[0].write(str(item.get("block_number", "")))
         row[1].write(str(item.get("transaction_index", "")))
         row[2].write(str(item.get("log_index", "")))
         row[3].write(str(item.get("event_signature", "")))
-        row[4].write(_format_event_timestamp(item))
-        row[5].code(item.get("event_hash"))
+        row[4].code(item.get("event_hash"))
         locator = _event_locator(item)
-        if row[6].button(
+        if row[5].button(
             "View",
             key=f"event-view:{chain_id}:{contract_address}:{event_key}:{locator}",
         ):

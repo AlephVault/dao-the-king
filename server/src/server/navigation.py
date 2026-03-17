@@ -74,7 +74,7 @@ def chain_label(data: ServerData, chain_id: int) -> str:
     Render the human-readable label for one chain.
     """
 
-    return f"{chain_id} - {data.chain_names.get(chain_id, 'Unknown')}"
+    return f"Chain {chain_id} - {data.chain_names.get(chain_id, 'Unknown')}"
 
 
 def render_contracts_sidebar(data: ServerData, render_page: PageRenderer):

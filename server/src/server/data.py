@@ -85,4 +85,4 @@ def contract_label(data: ServerData, chain_id: int, contract_address: str) -> st
     Return the configured contract label, falling back to the address.
     """
 
-    return data.contract_names.get(chain_id, {}).get(contract_address, contract_address)
+    return "Contract: " + data.contract_names.get(chain_id, {}).get(contract_address, contract_address)
