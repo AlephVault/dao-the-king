@@ -168,7 +168,7 @@ def render_method_page(
             method_key,
         )
 
-    render_transactions_section(data, chain_id, contract_address, method_key_filter=method_key)
+        render_transactions_section(data, chain_id, contract_address, method_key_filter=method_key)
 
 
 def render_transactions_section(
