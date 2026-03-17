@@ -14,6 +14,9 @@ from .navigation import chain_label, set_query_params
 from .wallet import WalletView, render_chain_wallet_prompt
 
 
+BADGE_COUNT_THRESHOLD = 8
+
+
 def render_main_page(data: ServerData) -> None:
     """
     Render the landing page with the supported chains list.
@@ -86,7 +89,18 @@ def render_contract_page(
 
     functions = function_entries(contract)
     badge_options = ["All"] + sorted(badge for badge in badges if badge in data.badge_methods)
-    selected_badge = st.selectbox("Filter methods by badge", badge_options)
+    if len(badge_options) < BADGE_COUNT_THRESHOLD:
+        selected_badge = st.segmented_control(
+            "Filter methods by badge",
+            badge_options,
+            default="All",
+            selection_mode="single",
+            key=f"badge-filter:{chain_id}:{contract_address}",
+        )
+        if selected_badge is None:
+            selected_badge = "All"
+    else:
+        selected_badge = st.selectbox("Filter methods by badge", badge_options)
     if selected_badge != "All":
         allowed = data.badge_methods[selected_badge]
         functions = [entry for entry in functions if function_key(entry) in allowed]
