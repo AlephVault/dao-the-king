@@ -249,7 +249,7 @@ class WorkerService:
             LOGGER.warning("Event %s not found in ABI for %s", event_signature, contract.address)
             return
 
-        topic0 = Web3.keccak(text=event_signature).hex()
+        topic0 = "0x" + Web3.keccak(text=event_signature).hex()
         start_block = max(last_block_number, 0)
         latest_block = contract.w3.eth.block_number
         block_step = max(self._context.settings.block_batch_size, 1)
