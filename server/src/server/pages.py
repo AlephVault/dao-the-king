@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime, UTC
 import json
 from math import ceil
 from typing import Any
@@ -182,6 +183,8 @@ def render_transactions_section(
     """
 
     st.subheader("Transactions")
+    section_key = method_key_filter or "__all__"
+    selection_state_key = f"tx-selection:{chain_id}:{contract_address}:{section_key}"
     if method_key_filter is None:
         total_count = data.storage.get_transactions_count(chain_id, contract_address)
         total_pages = max(1, ceil(total_count / data.settings.transactions_page_size))
@@ -220,8 +223,46 @@ def render_transactions_section(
         )
         st.caption(f"Showing {len(items)} of {total_count} transaction(s) for `{method_key_filter}`")
 
+    selected_hash = st.session_state.get(selection_state_key)
+    selected_item = next((item for item in items if item.get("hash") == selected_hash), None)
+    if selected_hash is not None and selected_item is None:
+        st.session_state.pop(selection_state_key, None)
+
+    headers = st.columns([1, 1, 2, 2, 3, 1])
+    for column, label in zip(
+        headers,
+        ["Block", "Tx.", "Function", "Timestamp", "Transaction Hash", "Details"],
+        strict=True,
+    ):
+        column.markdown(f"**{label}**")
+
+    if not items:
+        st.info("No stored transactions found.")
+        return
+
     for item in items:
-        st.json(item)
+        row = st.columns([1, 1, 2, 2, 3, 1], vertical_alignment="center")
+        row[0].write(str(item.get("block_number", "")))
+        row[1].write(str(item.get("transaction_index", "")))
+        row[2].write(_transaction_signature(item) or "")
+        row[3].write(_format_transaction_timestamp(item))
+        row[4].code(str(item.get("hash", "")))
+        if row[5].button("View", key=f"tx-view:{chain_id}:{contract_address}:{section_key}:{item.get('hash', '')}"):
+            st.session_state[selection_state_key] = item.get("hash")
+            selected_item = item
+
+    if selected_item is None:
+        return
+
+    st.divider()
+    st.caption(f"Current transaction: {selected_item.get('hash', '')}")
+    st.caption(
+        f"Block {selected_item.get('block_number', '')} / Tx. {selected_item.get('transaction_index', '')}"
+    )
+    st.json(selected_item)
+    if st.button("Close transaction details", key=f"tx-close:{chain_id}:{contract_address}:{section_key}"):
+        st.session_state.pop(selection_state_key, None)
+        st.rerun()
 
 
 def render_events_section(data: ServerData, chain_id: int, contract_address: str, contract: Contract) -> None:
@@ -414,6 +455,41 @@ def _parse_optional_uint(raw_value: str) -> tuple[int | None, str | None]:
     if parsed < 0:
         return None, "expected non-negative integer"
     return parsed, None
+
+
+def _transaction_signature(item: dict[str, Any]) -> str | None:
+    """
+    Return the canonical signature for one stored transaction when available.
+    """
+
+    decoded_input = item.get("decoded_input")
+    if not isinstance(decoded_input, dict):
+        return None
+    signature = decoded_input.get("function_signature")
+    return str(signature) if signature else None
+
+
+def _format_transaction_timestamp(item: dict[str, Any]) -> str:
+    """
+    Render the upstream transaction timestamp as `YYYY-mm-dd HH:MM:SS.ffffff`.
+    """
+
+    transaction = item.get("transaction")
+    if not isinstance(transaction, dict):
+        return ""
+
+    raw_value = transaction.get("timeStamp")
+    if raw_value in (None, ""):
+        raw_value = transaction.get("timestamp")
+    if raw_value in (None, ""):
+        return ""
+
+    try:
+        timestamp = int(str(raw_value), 10)
+    except (TypeError, ValueError):
+        return str(raw_value)
+
+    return datetime.fromtimestamp(timestamp, UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
 
 
 def _json_safe(value: Any) -> Any:
