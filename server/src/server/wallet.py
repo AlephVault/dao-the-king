@@ -64,12 +64,10 @@ def render_wallet_sidebar(wallet_view: WalletView) -> None:
         st.warning("No browser wallet provider is available.")
         return
 
-    st.write(f"Status: {f'Connected (chain id: {wallet_view.chain_id})'
+    st.write(f"Status: {f'Connected (chain id: `{wallet_view.chain_id}`)'
                         if wallet_view.connected else
                         'Disconnected'}")
     if wallet_view.connected:
-        if wallet_view.chain_id is not None:
-            st.write(f"Current chain: `{wallet_view.chain_id}`")
         selected = st.selectbox(
             "Account",
             wallet_view.accounts,
@@ -94,38 +92,24 @@ def render_chain_wallet_prompt(wallet_view: WalletView, *, expected_chain_id: in
     Render the chain-selection/connect/disconnect prompt on chain-aware pages.
     """
 
-    st.subheader("Wallet for This Chain")
     if wallet_view.wallet.status == "not-available":
-        st.warning("No browser wallet provider is available.")
+        st.error("No browser wallet provider is available.")
         return
-
     if not wallet_view.connected:
-        st.info("Connect your wallet to use this chain directly from the browser.")
-        if st.button("Connect wallet", key=f"wallet-prompt-connect:{expected_chain_id}", disabled=wallet_view.wallet.busy):
+        st.error("Connect your wallet to use this chain directly from the browser.")
+        if st.button("Connect wallet", key=f"wallet-prompt-connect:{expected_chain_id}",
+                     disabled=wallet_view.wallet.busy):
             wallet_view.wallet.connect()
         return
-
-    st.write(f"Wallet chain: `{wallet_view.chain_id}`")
-    left, right = st.columns(2)
-    with left:
-        if st.button(
-            f"Switch to chain {expected_chain_id}",
-            key=f"wallet-switch-button:{expected_chain_id}",
-            disabled=wallet_view.wallet.busy or wallet_view.chain_id == expected_chain_id,
-            use_container_width=True,
-        ):
-            st.session_state[f"wallet:switch:{expected_chain_id}:requested"] = True
-    with right:
-        if st.button(
-            "Disconnect wallet",
-            key=f"wallet-prompt-disconnect:{expected_chain_id}",
-            disabled=wallet_view.wallet.busy,
-            use_container_width=True,
-        ):
-            wallet_view.wallet.disconnect()
-
-    if wallet_view.chain_id == expected_chain_id:
-        st.success(f"Wallet is already on chain `{expected_chain_id}`.")
+    if st.button(
+        f"Switch to chain {expected_chain_id}",
+        key=f"wallet-switch-button:{expected_chain_id}",
+        disabled=wallet_view.wallet.busy or wallet_view.chain_id == expected_chain_id,
+        use_container_width=True,
+    ):
+        st.session_state[f"wallet:switch:{expected_chain_id}:requested"] = True
+    if wallet_view.chain_id != expected_chain_id:
+        st.error(f"Wallet is on chain `{wallet_view.chain_id}`. Switch it to `{expected_chain_id}`.")
         return
 
     switch_state_key = f"wallet:switch:{expected_chain_id}:requested"
